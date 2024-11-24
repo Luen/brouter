@@ -1,0 +1,11 @@
+services:
+  brouter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: brouter
+    ports:
+      - "17777:17777"
+    volumes:
+      - "./misc/scripts/segments4:/segments4"
+    command: /bin/server.sh
