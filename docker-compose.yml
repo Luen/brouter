@@ -9,3 +9,4 @@ services:
     volumes:
       - "./misc/scripts/segments4:/segments4"
     command: /bin/server.sh
+    restart: unless-stopped
