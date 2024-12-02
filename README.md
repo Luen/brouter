@@ -7,6 +7,51 @@ and energy-based car routing.
 
 For more infos see [http://brouter.de/brouter](http://brouter.de/brouter).
 
+## Run
+
+Download the Australian segments4 files with the following command:
+
+```bash
+wget -P misc/scripts/segments4/ https://brouter.de/brouter/segments4/E110_S10.rd5 \
+    https://brouter.de/brouter/segments4/E110_S15.rd5 \
+    https://brouter.de/brouter/segments4/E110_S20.rd5 \
+    https://brouter.de/brouter/segments4/E110_S25.rd5 \
+    https://brouter.de/brouter/segments4/E110_S30.rd5 \
+    https://brouter.de/brouter/segments4/E115_S10.rd5 \
+    https://brouter.de/brouter/segments4/E115_S15.rd5 \
+    https://brouter.de/brouter/segments4/E115_S20.rd5 \
+    https://brouter.de/brouter/segments4/E115_S25.rd5 \
+    https://brouter.de/brouter/segments4/E115_S30.rd5 \
+    https://brouter.de/brouter/segments4/E120_S10.rd5 \
+    https://brouter.de/brouter/segments4/E120_S15.rd5 \
+    https://brouter.de/brouter/segments4/E120_S20.rd5 \
+    https://brouter.de/brouter/segments4/E120_S25.rd5 \
+    https://brouter.de/brouter/segments4/E125_S10.rd5 \
+    https://brouter.de/brouter/segments4/E125_S15.rd5 \
+    https://brouter.de/brouter/segments4/E125_S20.rd5 \
+    https://brouter.de/brouter/segments4/E130_S10.rd5 \
+    https://brouter.de/brouter/segments4/E130_S15.rd5 \
+    https://brouter.de/brouter/segments4/E130_S20.rd5 \
+    https://brouter.de/brouter/segments4/E135_S10.rd5 \
+    https://brouter.de/brouter/segments4/E135_S15.rd5 \
+    https://brouter.de/brouter/segments4/E135_S20.rd5 \
+    https://brouter.de/brouter/segments4/E140_S10.rd5 \
+    https://brouter.de/brouter/segments4/E140_S15.rd5 \
+    https://brouter.de/brouter/segments4/E140_S20.rd5 \
+    https://brouter.de/brouter/segments4/E145_S10.rd5 \
+    https://brouter.de/brouter/segments4/E145_S15.rd5 \
+    https://brouter.de/brouter/segments4/E145_S20.rd5 \
+    https://brouter.de/brouter/segments4/E150_S10.rd5 \
+    https://brouter.de/brouter/segments4/E150_S15.rd5 \
+    https://brouter.de/brouter/segments4/E150_S20.rd5
+```
+
+Start the brouter server with the following command:
+
+```bash
+docker compose up -d --build
+```
+
 
 ## BRouter on Android
 
