@@ -147,6 +147,7 @@ public class RouteServer extends Thread implements Comparable<RouteServer> {
         return;
       }
       if (getline.startsWith("GET /")) {
+        String url = getline.split(" ")[1];
         if (url.equals("/")) {
           writeHttpHeader(bw, HTTP_STATUS_OK);
           bw.write("BRouter Server Running\n");
@@ -154,8 +155,6 @@ public class RouteServer extends Thread implements Comparable<RouteServer> {
           return;
         }
       }
-
-      String url = getline.split(" ")[1];
 
       RoutingParamCollector routingParamCollector = new RoutingParamCollector();
       Map<String, String> params = routingParamCollector.getUrlParams(url);
