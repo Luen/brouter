@@ -147,13 +147,17 @@ public class RouteServer extends Thread implements Comparable<RouteServer> {
         return;
       }
       String url = null;
-      if (getline.startsWith("GET /")) {
-        url = getline.split(" ")[1];
-        if (url.equals("/")) {
-          writeHttpHeader(bw, HTTP_STATUS_OK);
-          bw.write("BRouter Server Running\n");
-          bw.flush();
-          return;
+      if (getline != null) {
+        if (getline.startsWith("GET /")) {
+          url = getline.split(" ")[1];
+          if (url.equals("/")) {
+            writeHttpHeader(bw, HTTP_STATUS_OK);
+            bw.write("BRouter Server Running\n");
+            bw.flush();
+            return;
+          }
+        } else if (getline.startsWith("POST /")) {
+          url = getline.split(" ")[1];
         }
       }
 
