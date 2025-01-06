@@ -41,6 +41,7 @@ wget -P misc/scripts/segments4/ https://brouter.de/brouter/segments4/E110_S10.rd
     https://brouter.de/brouter/segments4/E145_S10.rd5 \
     https://brouter.de/brouter/segments4/E145_S15.rd5 \
     https://brouter.de/brouter/segments4/E145_S20.rd5 \
+    https://brouter.de/brouter/segments4/E145_S25.rd5 \
     https://brouter.de/brouter/segments4/E150_S10.rd5 \
     https://brouter.de/brouter/segments4/E150_S15.rd5 \
     https://brouter.de/brouter/segments4/E150_S20.rd5
