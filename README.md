@@ -58,9 +58,11 @@ docker compose up -d --build
 Set a cronjob to update the routes:
 
 ```bash
-
 which wget
 sudo crontab -e
+```
+
+```
 0 3 1 * * /usr/bin/wget -P /home/luen/brouter/misc/scripts/segments4/ -i /home/luen/brouter/urls.txt --append-output=/home/luen/brouter/cron.log
 
 ```
