@@ -63,7 +63,7 @@ sudo crontab -e
 ```
 
 ```
-0 3 1 * * /usr/bin/wget -P /home/luen/brouter/misc/scripts/segments4/ -i /home/luen/brouter/urls.txt --append-output=/home/luen/brouter/cron.log
+0 3 1 * * /bin/bash -c 'ls /home/luen/brouter/misc/scripts/segments4 | awk "{print \"https://brouter.de/brouter/segments4/\" \$0}" | xargs -n 1 /usr/bin/wget -P /home/luen/brouter/misc/scripts/segments4/ --append-output=/home/luen/brouter/cron.log'
 
 ```
 
