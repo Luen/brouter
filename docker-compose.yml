@@ -8,5 +8,10 @@ services:
       - "17777:17777"
     volumes:
       - "./misc/scripts/segments4:/segments4"
-    command: /bin/server.sh
+      - "./logs:/var/log"
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

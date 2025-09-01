@@ -20,3 +20,5 @@ misc/customprofiles
 .classpath
 .project
 !/.idea/runConfigurations
+misc/scripts/segments4/*
+brouter-cron

@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+build/
+.gradle/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Documentation
+docs/
+README.md
+LICENSE
+
+# Test files
+**/test/
+**/androidTest/
+
+# Node modules (if any)
+node_modules/
+
+# Docker files (except the ones we need)
+Dockerfile
+docker-compose.yml

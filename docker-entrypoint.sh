@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# BRouter Docker entrypoint script
+# Starts cron daemon and then runs the server
+
+set -e
+
+# Create log directory
+mkdir -p /var/log
+
+# Create a lock file to prevent duplicate execution
+LOCK_FILE="/tmp/brouter-entrypoint.lock"
+if [ -f "$LOCK_FILE" ]; then
+    echo "Entrypoint already running, waiting for lock to be released..."
+    while [ -f "$LOCK_FILE" ]; do
+        sleep 1
+    done
+fi
+
+# Create lock file
+echo $$ > "$LOCK_FILE"
+
+# Function to cleanup lock file on exit
+cleanup() {
+    rm -f "$LOCK_FILE"
+    exit 0
+}
+
+# Set trap to cleanup on script exit
+trap cleanup EXIT INT TERM
+
+# Create cron jobs directly
+echo "Creating cron jobs..."
+(cat << 'EOF'
+# BRouter segments download cron job
+# Run every Sunday at 2:00 AM
+0 2 * * 0 /bin/download_segments.sh
+EOF
+) | crontab -
+
+# Start cron daemon in background
+echo "Starting cron daemon..."
+cron
+
+# Wait a moment for cron to start
+sleep 3
+
+# Check if cron is running (using ps instead of pgrep)
+if ps aux | grep -v grep | grep cron > /dev/null; then
+    echo "Cron daemon started successfully"
+    echo "Cron jobs configured:"
+    crontab -l
+else
+    echo "Warning: Cron daemon failed to start"
+    echo "Attempting to start cron manually..."
+    service cron start || echo "Manual start failed"
+fi
+
+# Run initial download in background (with 2-minute delay)
+echo "Scheduling initial segment download in 2 minutes..."
+(sleep 120 && /bin/download_segments.sh) &
+
+# Run the original server command
+echo "Starting BRouter server..."
+exec "$@"
