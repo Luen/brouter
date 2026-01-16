@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 # java -cp brouter.jar btools.brouter.RouteServer <segmentdir> <profile-map> <customprofiledir> <port> <maxthreads> [bindaddress]
 
 # maxRunningTime is the request timeout in seconds, set to 0 to disable timeout
-JAVA_OPTS="-Xmx16g -Xms256M -Xmn256M -DmaxRunningTime=300"
+JAVA_OPTS="-Xmx40g -Xms256M -Xmn256M -DmaxRunningTime=300"
 
 # If paths are unset, first search in locations matching the directory structure
 # as found in the official BRouter zip archive
@@ -28,4 +28,4 @@ if [ ! -e "$CUSTOMPROFILESPATH" ]; then
     CUSTOMPROFILESPATH="../customprofiles"
 fi
 
-java $JAVA_OPTS -cp $CLASSPATH btools.server.RouteServer "$SEGMENTSPATH" "$PROFILESPATH" "$CUSTOMPROFILESPATH" 17777 12 $BINDADDRESS
+java $JAVA_OPTS -cp $CLASSPATH btools.server.RouteServer "$SEGMENTSPATH" "$PROFILESPATH" "$CUSTOMPROFILESPATH" 17777 16 $BINDADDRESS
