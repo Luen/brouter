@@ -1,4 +1,4 @@
-FROM gradle:jdk17-jammy AS build
+FROM gradle:9.3.0-jdk17-jammy AS build
 
 RUN mkdir /tmp/brouter
 WORKDIR /tmp/brouter
