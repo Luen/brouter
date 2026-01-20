@@ -33,6 +33,12 @@ RUN chmod +x /bin/docker-entrypoint.sh
 # Create segments directory
 RUN mkdir -p /segments4
 
+# Set environment variables for server script
+ENV CLASSPATH=/brouter.jar
+ENV SEGMENTSPATH=/segments4
+ENV PROFILESPATH=/profiles2
+ENV CUSTOMPROFILESPATH=/customprofiles
+
 # Set entrypoint
 ENTRYPOINT ["/bin/docker-entrypoint.sh"]
 

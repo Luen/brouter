@@ -10,11 +10,33 @@ mkdir -p /var/log
 
 # Create a lock file to prevent duplicate execution
 LOCK_FILE="/tmp/brouter-entrypoint.lock"
+LOCK_TIMEOUT=30  # Maximum seconds to wait for lock
+
 if [ -f "$LOCK_FILE" ]; then
-    echo "Entrypoint already running, waiting for lock to be released..."
-    while [ -f "$LOCK_FILE" ]; do
-        sleep 1
-    done
+    OLD_PID=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+    # Check if the process that created the lock is still running
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+        echo "Entrypoint already running (PID: $OLD_PID), waiting for lock to be released..."
+        WAIT_COUNT=0
+        while [ -f "$LOCK_FILE" ] && [ $WAIT_COUNT -lt $LOCK_TIMEOUT ]; do
+            sleep 1
+            WAIT_COUNT=$((WAIT_COUNT + 1))
+            # Re-check if the process is still running
+            if [ -n "$OLD_PID" ] && ! kill -0 "$OLD_PID" 2>/dev/null; then
+                echo "Previous entrypoint process (PID: $OLD_PID) is no longer running, removing stale lock..."
+                rm -f "$LOCK_FILE"
+                break
+            fi
+        done
+        # If lock still exists after timeout, remove it (stale lock)
+        if [ -f "$LOCK_FILE" ]; then
+            echo "Lock timeout reached, removing stale lock file..."
+            rm -f "$LOCK_FILE"
+        fi
+    else
+        echo "Removing stale lock file (process $OLD_PID not running)..."
+        rm -f "$LOCK_FILE"
+    fi
 fi
 
 # Create lock file
@@ -62,4 +84,10 @@ echo "Scheduling initial segment download in 2 minutes..."
 
 # Run the original server command
 echo "Starting BRouter server..."
+echo "Command: $@"
+echo "Working directory: $(pwd)"
+echo "Java version:"
+java -version 2>&1 || echo "Java not found in PATH"
+
+# Execute the server command
 exec "$@"
