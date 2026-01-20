@@ -5,7 +5,7 @@ WORKDIR /tmp/brouter
 COPY . .
 RUN ./gradlew clean build
 
-FROM openjdk:17.0.1-jdk-slim
+FROM openjdk:17.0.2-jdk-slim
 
 # Install cron, curl, and procps (for ps command)
 RUN apt-get update && apt-get install -y \
