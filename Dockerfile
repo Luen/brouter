@@ -5,7 +5,7 @@ WORKDIR /tmp/brouter
 COPY . .
 RUN ./gradlew clean build
 
-FROM openjdk:26-jdk-slim
+FROM eclipse-temurin:21-jdk-jammy
 
 # Install cron, curl, and procps (for ps command)
 RUN apt-get update && apt-get install -y \
