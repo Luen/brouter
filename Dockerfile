@@ -1,11 +1,11 @@
-FROM gradle:9.3.0-jdk17-jammy AS build
+FROM gradle:9.4.1-jdk17-jammy AS build
 
 RUN mkdir /tmp/brouter
 WORKDIR /tmp/brouter
 COPY . .
 RUN ./gradlew clean build
 
-FROM eclipse-temurin:21-jdk-jammy
+FROM eclipse-temurin:21.0.10_7-jdk-jammy
 
 # Install cron, curl, and procps (for ps command)
 RUN apt-get update && apt-get install -y \
