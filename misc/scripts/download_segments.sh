@@ -4,6 +4,7 @@ out_dir="/segments4"
 profiles_dir="/profiles2"
 log_file="/var/log/brouter-download.log"
 lookup_url="http://brouter.de/brouter/segments4/lookups.dat"
+lookup_fallback_url="https://raw.githubusercontent.com/abrensch/brouter/master/misc/profiles2/lookups.dat"
 lookup_file="$profiles_dir/lookups.dat"
 
 # Log function
@@ -19,22 +20,32 @@ mkdir -p "$profiles_dir"
 # Update lookups.dat first so profile metadata stays in sync with downloaded rd5 files.
 tmp_lookup_file="${lookup_file}.tmp"
 if curl -fsS "$lookup_url" --output "$tmp_lookup_file"; then
-    if [ -f "$tmp_lookup_file" ] && [ -s "$tmp_lookup_file" ]; then
-        if [ -f "$lookup_file" ]; then
-            old_lookup_version=$(grep -m1 '^---lookupversion:' "$lookup_file" | cut -d: -f2 | tr -d '[:space:]')
-        else
-            old_lookup_version="none"
-        fi
-        new_lookup_version=$(grep -m1 '^---lookupversion:' "$tmp_lookup_file" | cut -d: -f2 | tr -d '[:space:]')
-        mv -f "$tmp_lookup_file" "$lookup_file"
-        log "Updated lookups.dat (lookupversion: ${old_lookup_version} -> ${new_lookup_version:-unknown})"
-    else
-        rm -f "$tmp_lookup_file"
-        log "Failed to update lookups.dat (empty download)"
-    fi
+    lookup_source="$lookup_url"
+elif curl -fsS "$lookup_fallback_url" --output "$tmp_lookup_file"; then
+    lookup_source="$lookup_fallback_url"
+    log "Primary lookups URL failed, used fallback: $lookup_fallback_url"
+    true
 else
     rm -f "$tmp_lookup_file"
-    log "Failed to download lookups.dat from $lookup_url"
+    log "Failed to download lookups.dat from both URLs: $lookup_url and $lookup_fallback_url"
+fi
+
+if [ -f "$tmp_lookup_file" ] && [ -s "$tmp_lookup_file" ]; then
+    if [ -f "$lookup_file" ]; then
+        old_lookup_version=$(grep -m1 '^---lookupversion:' "$lookup_file" | cut -d: -f2 | tr -d '[:space:]')
+    else
+        old_lookup_version="none"
+    fi
+    new_lookup_version=$(grep -m1 '^---lookupversion:' "$tmp_lookup_file" | cut -d: -f2 | tr -d '[:space:]')
+    mv -f "$tmp_lookup_file" "$lookup_file"
+    log "Updated lookups.dat from $lookup_source (lookupversion: ${old_lookup_version} -> ${new_lookup_version:-unknown})"
+else
+    rm -f "$tmp_lookup_file"
+    if [ -z "$lookup_source" ]; then
+        log "Failed to update lookups.dat"
+    else
+        log "Failed to update lookups.dat (empty download from $lookup_source)"
+    fi
 fi
 
 # Get list of .rd5 files from the directory listing
