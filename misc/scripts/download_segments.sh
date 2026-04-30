@@ -1,7 +1,10 @@
 #!/bin/bash
 
 out_dir="/segments4"
+profiles_dir="/profiles2"
 log_file="/var/log/brouter-download.log"
+lookup_url="http://brouter.de/brouter/segments4/lookups.dat"
+lookup_file="$profiles_dir/lookups.dat"
 
 # Log function
 log() {
@@ -10,7 +13,29 @@ log() {
 
 log "Starting BRouter segments download"
 
-mkdir -p $out_dir
+mkdir -p "$out_dir"
+mkdir -p "$profiles_dir"
+
+# Update lookups.dat first so profile metadata stays in sync with downloaded rd5 files.
+tmp_lookup_file="${lookup_file}.tmp"
+if curl -fsS "$lookup_url" --output "$tmp_lookup_file"; then
+    if [ -f "$tmp_lookup_file" ] && [ -s "$tmp_lookup_file" ]; then
+        if [ -f "$lookup_file" ]; then
+            old_lookup_version=$(grep -m1 '^---lookupversion:' "$lookup_file" | cut -d: -f2 | tr -d '[:space:]')
+        else
+            old_lookup_version="none"
+        fi
+        new_lookup_version=$(grep -m1 '^---lookupversion:' "$tmp_lookup_file" | cut -d: -f2 | tr -d '[:space:]')
+        mv -f "$tmp_lookup_file" "$lookup_file"
+        log "Updated lookups.dat (lookupversion: ${old_lookup_version} -> ${new_lookup_version:-unknown})"
+    else
+        rm -f "$tmp_lookup_file"
+        log "Failed to update lookups.dat (empty download)"
+    fi
+else
+    rm -f "$tmp_lookup_file"
+    log "Failed to download lookups.dat from $lookup_url"
+fi
 
 # Get list of .rd5 files from the directory listing
 curl http://brouter.de/brouter/segments4/ --silent | grep "[EW][0-9]*_[NS][0-9]*\.rd5" -o | uniq > segments
