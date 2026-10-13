@@ -12,8 +12,12 @@ import btools.router.RoutingContext;
 import btools.server.ServiceContext;
 
 /**
- * URL query parameter handler for web and standalone server. Supports all
+ * Routing parameter handler for web and standalone server. Supports all
  * BRouter features without restrictions.
+ * <p>
+ * Parameters can either be sent via the request URL (GET) or via a request
+ * body using {@code application/x-www-form-urlencoded} or {@code text/plain}
+ * (POST/PUT, must be enabled via the {@code usePOSTRequests} server property).
  * <p>
  * Parameters:
  * <p>
@@ -35,10 +39,14 @@ import btools.server.ServiceContext;
  * Example URLs:
  * {@code http://localhost:17777/brouter?lonlats=8.799297,49.565883|8.811764,49.563606&nogos=&profile=trekking&alternativeidx=0&format=gpx}
  * {@code http://localhost:17777/brouter?lonlats=1.1,1.2|2.1,2.2|3.1,3.2|4.1,4.2&nogos=-1.1,-1.2,1|-2.1,-2.2,2&profile=shortest&alternativeidx=1&format=kml&trackname=Ride&pois=1.1,2.1,Barner Bar}
+ * {@code curl -X POST http://localhost:17777/brouter -H 'Content-Type: application/x-www-form-urlencoded' --data 'lonlats=8.799297,49.565883%7C8.811764,49.563606&profile=trekking&format=gpx'}
+ * {@code curl -X PUT http://localhost:17777/brouter -H 'Content-Type: application/x-www-form-urlencoded' --data-binary @request-body.txt}
  */
 public class ServerHandler extends RequestHandler {
 
   private RoutingContext rc;
+
+  private static boolean useRFCMimeType = Boolean.getBoolean("useRFCMimeType");
 
   public ServerHandler(ServiceContext serviceContext, Map<String, String> params) {
     super(serviceContext, params);
@@ -47,7 +55,7 @@ public class ServerHandler extends RequestHandler {
   @Override
   public RoutingContext readRoutingContext() {
     rc = new RoutingContext();
-    rc.memoryclass = 128;
+    rc.memoryclass = Integer.getInteger("memoryClass", 128);
 
     String profile = params.get("profile");
     // when custom profile replace prefix with directory path
@@ -75,6 +83,10 @@ public class ServerHandler extends RequestHandler {
     String exportWaypointsStr = params.get("exportWaypoints");
     if (exportWaypointsStr != null && Integer.parseInt(exportWaypointsStr) != 0) {
       track.exportWaypoints = true;
+    }
+    exportWaypointsStr = params.get("exportCorrectedWaypoints");
+    if (exportWaypointsStr != null && Integer.parseInt(exportWaypointsStr) != 0) {
+      track.exportCorrectedWaypoints = true;
     }
 
     if (format == null || "gpx".equals(format)) {
@@ -107,7 +119,10 @@ public class ServerHandler extends RequestHandler {
       } else if ("kml".equals(format)) {
         result = "application/vnd.google-earth.kml+xml";
       } else if ("geojson".equals(format)) {
-        result = "application/geo+json";
+        if (useRFCMimeType)
+          result = "application/geo+json";
+        else
+          result = "application/vnd.geo+json";
       } else if ("csv".equals(format)) {
         result = "text/tab-separated-values";
       }

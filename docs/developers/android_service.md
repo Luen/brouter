@@ -25,10 +25,11 @@ The profile parameter 'correctMisplacedViaPoints' tries to avoid this situation.
 On the other hand, it would be fatal if this point is not reached when you want to go there.
 There are to choices to manage that:
 - add a poi to the 'pois' list
-- name the point in lonlats list
+- name the point in lonlats list (...|x,y,"stop here"|...)
+- add an unnamed point (...|x,y,m|...)
 
 Another feature of BRouter is routing via beelines.
-Define a straight starting point in the 'lonlats' list with a 'd' (direct). The second point needs no declaration.
+Define a straight starting point in the 'lonlats' list with a 'd' (direct) like (...|x,y,d|...). The second point needs no declaration.
 
 This contradicts the naming rules in 'lonlats'. If the point is to be given a name, the router parameter 'straight' can be used instead and filled with the index of the point.
 
@@ -87,7 +88,7 @@ Another variant is to send parameters for an existing profile that are different
 With the version  1.7.1 it is possible to collect parameters from the profile.
 The variable parameters are defined like this
 ```
-assign avoid_path            = false  # %avoid_path% | Set to true to avoid pathes | boolean
+assign avoid_path            = false  # %avoid_path% | Set to true to avoid paths | boolean
 ```
 You probably know that from the web client, it builds an option dialog for this.
 Now you could do that with an calling app.
@@ -114,21 +115,21 @@ startActivity(intent);
 
 This suppress the first question after installation for the BRouter path, generates the BRouter folders in main space  and starts the download dialog.
 
-### silent app call
-
-The app can be started from other apps by using a call like this
-
-```
-Intent intent = new Intent();
-intent.setClassName("btools.routingapp", "btools.routingapp.BRouterActivity");
-intent.putExtra("runsilent", true);
-startActivity(intent);
-```
-
-This suppress the first question after installation for the BRouter path, generates the BRouter folders in main space  and starts the download dialog.
-
 ## other routing engine modes in app
 
 ### get elevation
 
-"engineMode=2" allows a client to only request an elevation for a point. This can be restricted with "waypointCatchingRange".
+"engineMode=2" allows a client to request only an elevation for a point. This can be restricted with "waypointCatchingRange".
+
+### get info
+
+"engineMode=3" allows a client to request the description tags for  a segment. This can be restricted with "waypointCatchingRange".
+
+### round trip
+
+"engineMode=4" generate routes returning to the start point.
+This needs some parameter:
+- roundTripDistance - radius to the round trip points in meters (default 1500)
+- direction - initial round-trip bearing; use a fixed angle for reproducible loops, -1/random otherwise
+
+F
