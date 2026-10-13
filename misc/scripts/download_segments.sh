@@ -3,7 +3,7 @@
 out_dir="/segments4"
 profiles_dir="/profiles2"
 log_file="/var/log/brouter-download.log"
-lookup_url="http://brouter.de/brouter/segments4/lookups.dat"
+lookup_url="https://brouter.de/brouter/segments4/lookups.dat"
 lookup_fallback_url="https://raw.githubusercontent.com/abrensch/brouter/master/misc/profiles2/lookups.dat"
 lookup_file="$profiles_dir/lookups.dat"
 
@@ -19,9 +19,9 @@ mkdir -p "$profiles_dir"
 
 # Update lookups.dat first so profile metadata stays in sync with downloaded rd5 files.
 tmp_lookup_file="${lookup_file}.tmp"
-if curl -fsS "$lookup_url" --output "$tmp_lookup_file"; then
+if curl -fsSL "$lookup_url" --output "$tmp_lookup_file"; then
     lookup_source="$lookup_url"
-elif curl -fsS "$lookup_fallback_url" --output "$tmp_lookup_file"; then
+elif curl -fsSL "$lookup_fallback_url" --output "$tmp_lookup_file"; then
     lookup_source="$lookup_fallback_url"
     log "Primary lookups URL failed, used fallback: $lookup_fallback_url"
     true
@@ -49,7 +49,15 @@ else
 fi
 
 # Get list of .rd5 files from the directory listing
-curl http://brouter.de/brouter/segments4/ --silent | grep "[EW][0-9]*_[NS][0-9]*\.rd5" -o | uniq > segments
+# https is required: the plain-http listing now returns nothing, which made
+# this script silently download zero segments and leave the data stale.
+curl -fsSL --max-time 120 https://brouter.de/brouter/segments4/ | grep "[EW][0-9]*_[NS][0-9]*\.rd5" -o | sort -u > segments
+
+if [ ! -s segments ]; then
+    log "ERROR: segment listing from brouter.de was empty; keeping existing segments"
+    rm -f segments
+    exit 1
+fi
 
 log "Found $(wc -l < segments) segments to download"
 
@@ -59,7 +67,7 @@ SECONDS=0
 <segments xargs -I{} -P8 sh -c "
     filename={}
     local_file=\"$out_dir/\$filename\"
-    remote_url=\"http://brouter.de/brouter/segments4/\$filename\"
+    remote_url=\"https://brouter.de/brouter/segments4/\$filename\"
     log_file=\"$log_file\"
     
     # Simple log function for subshell
@@ -75,7 +83,7 @@ SECONDS=0
     fi
     
     # Get remote file size using HEAD request
-    remote_size=\$(curl -sI \"\$remote_url\" | grep -i content-length | awk '{print \$2}' | tr -d \"\\r\")
+    remote_size=\$(curl -sIL \"\$remote_url\" | grep -i content-length | awk '{print \$2}' | tr -d \"\\r\")
     
     # If remote size is empty or we can't get it, assume we need to download
     if [ -z \"\$remote_size\" ] || [ \"\$remote_size\" = \"0\" ]; then
@@ -85,9 +93,10 @@ SECONDS=0
     # Download if file doesn't exist or sizes differ
     if [ ! -f \"\$local_file\" ] || [ \"\$local_size\" != \"\$remote_size\" ]; then
         log \"Downloading \$filename (local: \${local_size}, remote: \${remote_size})\"
-        if curl -s \"\$remote_url\" --remote-time --output \"\$local_file\"; then
+        if curl -fsSL \"\$remote_url\" --remote-time --output \"\$local_file.part\" && mv -f \"\$local_file.part\" \"\$local_file\"; then
             log \"Successfully downloaded \$filename\"
         else
+            rm -f \"\$local_file.part\"
             log \"Failed to download \$filename\"
         fi
     else
