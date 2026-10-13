@@ -105,7 +105,7 @@ public class OsmCutter extends MapCreatorBase {
   }
 
   private void checkStats() {
-    if ((++recordCnt % 100000) == 0) System.out.println(statsLine());
+    if ((++recordCnt % 1000000) == 0) System.out.println(statsLine());
   }
 
   private String statsLine() {
@@ -113,7 +113,11 @@ public class OsmCutter extends MapCreatorBase {
   }
 
   public void setDbTagFilename(String filename) {
-    dbPseudoTagProvider = new DatabasePseudoTagProvider(filename);
+    dbPseudoTagProvider = new DatabasePseudoTagProvider(filename, null);
+  }
+
+  public void setDbTagDatabase(String jdbcurl) {
+    dbPseudoTagProvider = new DatabasePseudoTagProvider(null, jdbcurl);
   }
 
   @Override
@@ -121,7 +125,12 @@ public class OsmCutter extends MapCreatorBase {
     nodesParsed++;
     checkStats();
 
+    if (dbPseudoTagProvider != null) {
+      dbPseudoTagProvider.addNodeTags(n);
+    }
+
     if (n.getTagsOrNull() != null) {
+      generatePseudoTags(n.getTagsOrNull());
       int[] lookupData = _expctxNode.createNewLookupData();
       for (Map.Entry<String, String> e : n.getTagsOrNull().entrySet()) {
         _expctxNode.addLookupValue(e.getKey(), e.getValue(), lookupData);
@@ -141,6 +150,14 @@ public class OsmCutter extends MapCreatorBase {
 
 
   private void generatePseudoTags(Map<String, String> map) {
+    // access=unknown collides with the reserved lookup index used for
+    // absent/unrecognized values (see BExpressionContext#addLookupValue),
+    // so it decodes identically to no access tag at all. Rewrite it here
+    // so lookups.dat can alias it to a distinct, non-fallback value.
+    if ("unknown".equals(map.get("access"))) {
+      map.put("access", "value_unknown");
+    }
+
     // add pseudo.tags for concrete:lanes and concrete:plates
 
     String concrete = null;
@@ -172,7 +189,7 @@ public class OsmCutter extends MapCreatorBase {
     if (w.getTagsOrNull() == null) return;
 
     if (dbPseudoTagProvider != null) {
-      dbPseudoTagProvider.addTags(w.wid, w.getTagsOrNull());
+      dbPseudoTagProvider.addWayTags(w.wid, w.getTagsOrNull());
     }
 
     generatePseudoTags(w.getTagsOrNull());

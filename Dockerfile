@@ -1,47 +1,37 @@
-FROM gradle:9.4.1-jdk17-jammy AS build
+# The build stage runs on the build host for every target platform, because
+# the jar is architecture independent. Only the runtime stage runs per
+# platform.
+FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk-jammy AS build
 
-RUN mkdir /tmp/brouter
-WORKDIR /tmp/brouter
+WORKDIR /brouter
 COPY . .
-RUN ./gradlew clean build
 
-FROM eclipse-temurin:21.0.10_7-jdk-jammy
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
+RUN --mount=type=cache,target=/root/.gradle ./gradlew --no-daemon clean build
 
-# Install cron, curl, and procps (for ps command)
+# Fork: runtime keeps cron + weekly segment refresh, so it runs as root.
+FROM eclipse-temurin:21-jre-jammy
+
 RUN apt-get update && apt-get install -y \
     cron \
     curl \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy BRouter files
-COPY --from=build /tmp/brouter/brouter-server/build/libs/brouter-*-all.jar /brouter.jar
-COPY --from=build /tmp/brouter/misc/scripts/standalone/server.sh /bin/
-COPY --from=build /tmp/brouter/misc/* /profiles2
+RUN mkdir -p /segments4 /customprofiles && touch /var/log/cron.log
 
-# Copy download script and make it executable
-COPY --from=build /tmp/brouter/misc/scripts/download_segments.sh /bin/download_segments.sh
-RUN chmod +x /bin/download_segments.sh
+COPY --from=build /brouter/brouter-server/build/libs/brouter-*-all.jar /brouter.jar
+COPY --from=build --chmod=755 /brouter/misc/scripts/standalone/server.sh /bin/server.sh
+COPY --from=build /brouter/misc/profiles2/ /profiles2/
+COPY --from=build --chmod=755 /brouter/misc/scripts/download_segments.sh /bin/download_segments.sh
+COPY --chmod=755 docker-entrypoint.sh /bin/docker-entrypoint.sh
 
-# Create cron log file
-RUN touch /var/log/cron.log
+ENV CLASSPATH=/brouter.jar \
+    SEGMENTSPATH=/segments4 \
+    PROFILESPATH=/profiles2 \
+    CUSTOMPROFILESPATH=/customprofiles
 
-# Copy entrypoint script and make it executable
-COPY docker-entrypoint.sh /bin/docker-entrypoint.sh
-RUN chmod +x /bin/docker-entrypoint.sh
+EXPOSE 17777
 
-# Create segments directory
-RUN mkdir -p /segments4
-
-# Set environment variables for server script
-ENV CLASSPATH=/brouter.jar
-ENV SEGMENTSPATH=/segments4
-ENV PROFILESPATH=/profiles2
-ENV CUSTOMPROFILESPATH=/customprofiles
-
-# Set entrypoint
 ENTRYPOINT ["/bin/docker-entrypoint.sh"]
-
-# Default command
 CMD ["/bin/server.sh"]
-

@@ -14,6 +14,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -28,7 +30,7 @@ public class RouteServerTest {
   public static TemporaryFolder profileDir = new TemporaryFolder();
 
   @BeforeClass
-  public static void setupServer() throws IOException, InterruptedException {
+  public static void setupServer() throws IOException, InterruptedException, URISyntaxException {
     File workingDir = new File(".").getCanonicalFile();
     File segmentDir = new File(workingDir, "../brouter-map-creator/build/resources/test/tmp/segments");
     File profileSourceDir = new File(workingDir, "../misc/profiles2");
@@ -41,7 +43,7 @@ public class RouteServerTest {
       try {
         RouteServer.main(new String[]{segmentDir.getAbsolutePath(), profileDir.getRoot().getAbsolutePath(), customProfileDir, port, "1"});
       } catch (Exception e) {
-        e.printStackTrace();
+        e.printStackTrace(System.out);
       }
     };
 
@@ -49,7 +51,7 @@ public class RouteServerTest {
     thread.start();
 
     // Busy-wait for server startup
-    URL requestUrl = new URL(baseUrl);
+    URL requestUrl = new URI(baseUrl).toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     for (int i = 20; i >= 0; i--) {
       try {
@@ -66,8 +68,8 @@ public class RouteServerTest {
   }
 
   @Test
-  public void defaultRouteTrekking() throws IOException {
-    URL requestUrl = new URL(baseUrl + "brouter?lonlats=8.723037,50.000491|8.712737,50.002899&nogos=&profile=trekking&alternativeidx=0&format=geojson");
+  public void defaultRouteTrekking() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter?lonlats=8.723037,50.000491%7C8.712737,50.002899&nogos=&profile=trekking&alternativeidx=0&format=geojson").toURL();
 
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     httpConnection.connect();
@@ -82,8 +84,75 @@ public class RouteServerTest {
   }
 
   @Test
-  public void overrideParameter() throws IOException {
-    URL requestUrl = new URL(baseUrl + "brouter?lonlats=8.723037,50.000491|8.712737,50.002899&nogos=&profile=trekking&alternativeidx=0&format=geojson&profile:avoid_unsafe=1");
+  public void routeRequestFromPostBody() throws IOException, URISyntaxException {
+    System.setProperty("usePOSTRequests", "true");
+    try {
+      URL requestUrl = new URI(baseUrl + "brouter").toURL();
+      HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
+
+      httpConnection.setRequestMethod("POST");
+      httpConnection.setDoOutput(true);
+      httpConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+      String requestBody = "lonlats=8.723037,50.000491%7C8.712737,50.002899&profile=trekking&alternativeidx=0&format=geojson";
+      try (OutputStream outputStream = httpConnection.getOutputStream()) {
+        outputStream.write(requestBody.getBytes(StandardCharsets.UTF_8));
+      }
+
+      Assert.assertEquals(HttpURLConnection.HTTP_OK, httpConnection.getResponseCode());
+
+      InputStream inputStream = httpConnection.getInputStream();
+      JSONObject geoJson = new JSONObject(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8));
+      Assert.assertEquals("1169", geoJson.query("/features/0/properties/track-length"));
+    } finally {
+      System.clearProperty("usePOSTRequests");
+    }
+  }
+
+  @Test
+  public void largePolygonRequestFromPutBody() throws IOException, URISyntaxException {
+    System.setProperty("usePOSTRequests", "true");
+    try {
+      URL requestUrl = new URI(baseUrl + "brouter").toURL();
+      HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
+
+      httpConnection.setRequestMethod("PUT");
+      httpConnection.setDoOutput(true);
+      httpConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+      String requestBody = "lonlats=8.723037,50.000491%7C8.712737,50.002899&profile=trekking&alternativeidx=0&format=geojson&polygons=" + buildLargePolygon();
+      try (OutputStream outputStream = httpConnection.getOutputStream()) {
+        outputStream.write(requestBody.getBytes(StandardCharsets.UTF_8));
+      }
+
+      Assert.assertEquals(HttpURLConnection.HTTP_OK, httpConnection.getResponseCode());
+
+      InputStream inputStream = httpConnection.getInputStream();
+      JSONObject geoJson = new JSONObject(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8));
+      Assert.assertEquals("1169", geoJson.query("/features/0/properties/track-length"));
+    } finally {
+      System.clearProperty("usePOSTRequests");
+    }
+  }
+
+  @Test
+  public void postRequestDisabledByDefault() throws IOException, URISyntaxException {
+    System.clearProperty("usePOSTRequests");
+    URL requestUrl = new URI(baseUrl + "brouter").toURL();
+    HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
+
+    httpConnection.setRequestMethod("POST");
+    httpConnection.setDoOutput(true);
+    httpConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+    String requestBody = "lonlats=8.723037,50.000491%7C8.712737,50.002899&profile=trekking&alternativeidx=0&format=geojson";
+    try (OutputStream outputStream = httpConnection.getOutputStream()) {
+      outputStream.write(requestBody.getBytes(StandardCharsets.UTF_8));
+    }
+
+    Assert.assertEquals(HttpURLConnection.HTTP_BAD_METHOD, httpConnection.getResponseCode());
+  }
+
+  @Test
+  public void overrideParameter() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter?lonlats=8.723037,50.000491%7C8.712737,50.002899&nogos=&profile=trekking&alternativeidx=0&format=geojson&profile:avoid_unsafe=1").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     httpConnection.connect();
 
@@ -91,12 +160,12 @@ public class RouteServerTest {
 
     InputStream inputStream = httpConnection.getInputStream();
     JSONObject geoJson = new JSONObject(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8));
-    Assert.assertEquals("1570", geoJson.query("/features/0/properties/track-length"));
+    Assert.assertEquals("1455", geoJson.query("/features/0/properties/track-length"));
   }
 
   @Test
-  public void voiceHints() throws IOException {
-    URL requestUrl = new URL(baseUrl + "brouter?lonlats=8.705796,50.003124|8.705859,50.0039599&nogos=&profile=trekking&alternativeidx=0&format=geojson&timode=2");
+  public void voiceHints() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter?lonlats=8.705796,50.003124%7C8.705859,50.0039599&nogos=&profile=trekking&alternativeidx=0&format=geojson&timode=2").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     httpConnection.connect();
 
@@ -108,8 +177,8 @@ public class RouteServerTest {
   }
 
   @Test
-  public void directRoutingFirst() throws IOException {
-    URL requestUrl = new URL(baseUrl + "brouter?lonlats=8.718354,50.001514|8.718917,50.001361|8.716986,50.000105|8.718306,50.00145&nogos=&profile=trekking&alternativeidx=0&format=geojson&straight=0&timode=3");
+  public void directRoutingFirst() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter?lonlats=8.718354,50.001514%7C8.718917,50.001361%7C8.716986,50.000105%7C8.718306,50.00145&nogos=&profile=trekking&alternativeidx=0&format=geojson&straight=0&timode=3").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     httpConnection.connect();
 
@@ -121,8 +190,8 @@ public class RouteServerTest {
   }
 
   @Test
-  public void directRoutingLast() throws IOException {
-    URL requestUrl = new URL(baseUrl + "brouter?lonlats=8.718306,50.00145|8.717464,50.000405|8.718917,50.001361|8.718354,50.001514&nogos=&profile=trekking&alternativeidx=0&format=geojson&straight=2&timode=3");
+  public void directRoutingLast() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter?lonlats=8.718306,50.00145%7C8.717464,50.000405%7C8.718917,50.001361%7C8.718354,50.001514&nogos=&profile=trekking&alternativeidx=0&format=geojson&straight=2&timode=3").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     httpConnection.connect();
 
@@ -134,8 +203,8 @@ public class RouteServerTest {
   }
 
   @Test
-  public void directRoutingMiddle() throws IOException {
-    URL requestUrl = new URL(baseUrl + "brouter?lonlats=8.718539,50.006581|8.718198,50.006065,d|8.71785,50.006034|8.7169,50.004456&nogos=&profile=trekking&alternativeidx=0&format=geojson&timode=3");
+  public void directRoutingMiddle() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter?lonlats=8.718539,50.006581%7C8.718198,50.006065,d%7C8.71785,50.006034%7C8.7169,50.004456&nogos=&profile=trekking&alternativeidx=0&format=geojson&timode=3").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     httpConnection.connect();
 
@@ -147,8 +216,8 @@ public class RouteServerTest {
   }
 
   @Test
-  public void misplacedPoints() throws IOException {
-    URL requestUrl = new URL(baseUrl + "brouter?lonlats=8.708678,49.999188|8.71145,49.999761|8.715801,50.00065&nogos=&profile=trekking&alternativeidx=0&format=geojson&correctMisplacedViaPoints=1&timode=3");
+  public void misplacedPoints() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter?lonlats=8.708678,49.999188%7C8.71145,49.999761%7C8.715801,50.00065&nogos=&profile=trekking&alternativeidx=0&format=geojson&profile:correctMisplacedViaPoints=1&timode=3").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     httpConnection.connect();
 
@@ -160,8 +229,21 @@ public class RouteServerTest {
   }
 
   @Test
-  public void uploadValidProfile() throws IOException {
-    URL requestUrl = new URL(baseUrl + "brouter/profile");
+  public void misplacedPointsRoundabout() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter?lonlats=8.699487,50.001257%7C8.701569,50.000092%7C8.704873,49.998898&nogos=&profile=trekking&alternativeidx=0&format=geojson&profile:correctMisplacedViaPoints=1&timode=3").toURL();
+    HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
+    httpConnection.connect();
+
+    Assert.assertEquals(HttpURLConnection.HTTP_OK, httpConnection.getResponseCode());
+
+    InputStream inputStream = httpConnection.getInputStream();
+    JSONObject geoJson = new JSONObject(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8));
+    Assert.assertEquals("482", geoJson.query("/features/0/properties/track-length"));
+  }
+
+  @Test
+  public void uploadValidProfile() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter/profile").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
 
     httpConnection.setRequestMethod("POST");
@@ -192,8 +274,8 @@ public class RouteServerTest {
   }
 
   @Test
-  public void uploadInvalidProfile() throws IOException {
-    URL requestUrl = new URL(baseUrl + "brouter/profile");
+  public void uploadInvalidProfile() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "brouter/profile").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
 
     httpConnection.setRequestMethod("POST");
@@ -214,8 +296,8 @@ public class RouteServerTest {
   }
 
   @Test
-  public void robots() throws IOException {
-    URL requestUrl = new URL(baseUrl + "robots.txt");
+  public void robots() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "robots.txt").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     httpConnection.connect();
 
@@ -226,11 +308,25 @@ public class RouteServerTest {
   }
 
   @Test
-  public void invalidUrl() throws IOException {
-    URL requestUrl = new URL(baseUrl + "invalid");
+  public void invalidUrl() throws IOException, URISyntaxException {
+    URL requestUrl = new URI(baseUrl + "invalid").toURL();
     HttpURLConnection httpConnection = (HttpURLConnection) requestUrl.openConnection();
     httpConnection.connect();
 
     Assert.assertEquals(HttpURLConnection.HTTP_NOT_FOUND, httpConnection.getResponseCode());
+  }
+
+  private static String buildLargePolygon() {
+    StringBuilder polygon = new StringBuilder();
+    for (int i = 0; i < 600; i++) {
+      double angle = Math.PI * 2. * i / 600.;
+      double lon = 8.80 + Math.cos(angle) * 0.01;
+      double lat = 50.05 + Math.sin(angle) * 0.01;
+      if (i > 0) {
+        polygon.append(',');
+      }
+      polygon.append(lon).append(',').append(lat);
+    }
+    return polygon.toString();
   }
 }

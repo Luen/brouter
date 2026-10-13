@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.zip.ZipEntry;
@@ -44,6 +45,8 @@ import btools.router.OsmTrack;
 import btools.router.RoutingContext;
 import btools.router.RoutingEngine;
 import btools.router.RoutingHelper;
+import btools.router.RoutingParamCollector;
+
 import btools.util.CheapRuler;
 
 public class BRouterView extends View {
@@ -231,8 +234,16 @@ public class BRouterView extends View {
         System.currentTimeMillis() - lastTimeoutTime < 1800000) {
         BufferedReader br = new BufferedReader(new FileReader(lastTimeoutFile));
         String repeatProfile = br.readLine();
+        String tmp = br.readLine();
+        tmp = br.readLine();
         br.close();
-        profiles.add(0, "<repeat:" + repeatProfile + ">");
+        int wptCount = 0;
+        try {
+          wptCount = Integer.parseInt(tmp);
+        } catch (NumberFormatException e) {}
+        if (wptCount > 1) {
+          profiles.add(0, "<repeat:" + repeatProfile + ">");
+        }
       }
 
       if (!lookupsFound) {
@@ -250,11 +261,12 @@ public class BRouterView extends View {
       };
 
       if (!RoutingHelper.hasDirectoryAnyDatafiles(segmentDir)) {
+        ((BRouterActivity) getContext()).selectProfile(profiles.toArray(new String[0]), false);
         ((BRouterActivity) getContext()).startDownloadManager();
         waitingForSelection = true;
         return;
       }
-      ((BRouterActivity) getContext()).selectProfile(profiles.toArray(new String[0]));
+      ((BRouterActivity) getContext()).selectProfile(profiles.toArray(new String[0]), true);
     } catch (Exception e) {
       String msg = e instanceof IllegalArgumentException ? e.getMessage()
         + (cor == null ? "" : " (coordinate-source: " + cor.basedir + cor.rootdir + ")") : e.toString();
@@ -436,6 +448,7 @@ public class BRouterView extends View {
 
   public void startProcessing(String profile) {
     rawTrackPath = null;
+    String params = null;
     if (profile.startsWith("<repeat")) {
       needsViaSelection = needsNogoSelection = needsWaypointSelection = false;
       try {
@@ -445,6 +458,7 @@ public class BRouterView extends View {
         rawTrackPath = br.readLine();
         wpList = readWpList(br, false);
         nogoList = readWpList(br, true);
+        params = br.readLine();
         br.close();
       } catch (Exception e) {
         AppLogger.log(AppLogger.formatThrowable(e));
@@ -492,6 +506,15 @@ public class BRouterView extends View {
 
       rc.localFunction = profilePath;
       rc.turnInstructionMode = cor.getTurnInstructionMode();
+
+      if (params != null && params.length() > 2) {
+        try {
+          Map<String, String> profileParamsCollection = null;
+          RoutingParamCollector routingParamCollector = new RoutingParamCollector();
+          profileParamsCollection = routingParamCollector.getUrlParams(params);
+          routingParamCollector.setProfileParams(rc, profileParamsCollection);
+        } catch (Exception e) {}
+      }
 
       int plain_distance = 0;
       int maxlon = Integer.MIN_VALUE;
@@ -817,17 +840,17 @@ public class BRouterView extends View {
     }
   }
 
-  public void startConfigureService() {
+  public void startConfigureService(String sparams) {
     String[] modes = new String[]
       {"foot_short", "foot_fast", "bicycle_short", "bicycle_fast", "motorcar_short", "motorcar_fast"};
     boolean[] modesChecked = new boolean[6];
 
     String msg = "Choose service-modes to configure (" + profileName + " [" + nogoVetoList.size() + "])";
 
-    ((BRouterActivity) getContext()).selectRoutingModes(modes, modesChecked, msg);
+    ((BRouterActivity) getContext()).selectRoutingModes(modes, modesChecked, msg, sparams);
   }
 
-  public void configureService(String[] routingModes, boolean[] checkedModes) {
+  public void configureService(String[] routingModes, boolean[] checkedModes, String sparams) {
     // read in current config
     TreeMap<String, ServiceModeConfig> map = new TreeMap<>();
     BufferedReader br = null;
@@ -861,7 +884,8 @@ public class BRouterView extends View {
           s = sm.params;
           p = sm.profile;
         }
-        if (s == null || !p.equals(profileName)) s = "noparams";
+        if (p != null && !p.equals(profileName)) s = sparams;
+        if (s == null || s.equals("")) s = "noparams";
         ServiceModeConfig smc = new ServiceModeConfig(routingModes[i], profileName, s);
         for (OsmNodeNamed nogo : nogoVetoList) {
           smc.nogoVetos.add(nogo.ilon + "," + nogo.ilat);
