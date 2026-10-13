@@ -173,8 +173,8 @@ public class RouteServer extends Thread implements Comparable<RouteServer> {
       String url = requestLineParts[1];
       String path = getUrlPath(url);
 
-      // Fork: plain health check on the root path
-      if ("GET".equals(method) && "/".equals(path)) {
+      // Fork: plain health check on bare "/" (gps.studio routes via "/?lonlats=...", so match the full url)
+      if ("GET".equals(method) && "/".equals(url)) {
         writeHttpHeader(bw, HTTP_STATUS_OK);
         bw.write("BRouter Server Running\n");
         bw.flush();
