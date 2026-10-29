@@ -1,5 +1,7 @@
 services:
   brouter:
+    # Prefer GHCR on servers (Watchtower). Local: docker compose up --build
+    image: ghcr.io/luen/brouter:latest
     build:
       context: .
       dockerfile: Dockerfile
