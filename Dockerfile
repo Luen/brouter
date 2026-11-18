@@ -26,6 +26,12 @@ COPY --from=build /brouter/misc/profiles2/ /profiles2/
 COPY --from=build --chmod=755 /brouter/misc/scripts/download_segments.sh /bin/download_segments.sh
 COPY --chmod=755 docker-entrypoint.sh /bin/docker-entrypoint.sh
 
+# TEMPORARY (CVE-2026-114938, "Java4Shell"): the 21-jre tag currently resolves
+# to jdk-21.0.13+9, which is in the affected range (up to 21.0.13). Disabling
+# the hardware Base64 intrinsic stops the heap overflow and works on any CPU.
+# Remove this once the runtime image is pinned to a fixed build (21.0.13.1+).
+ENV JAVA_TOOL_OPTIONS="-XX:-UseBASE64Intrinsics"
+
 ENV CLASSPATH=/brouter.jar \
     SEGMENTSPATH=/segments4 \
     PROFILESPATH=/profiles2 \
